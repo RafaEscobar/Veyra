@@ -36,7 +36,11 @@ void main() {
 
   test('production manifest disables backup and cleartext traffic', () {
     expect(manifest, contains('android:allowBackup="false"'));
-    expect(manifest, contains('android:fullBackupContent="false"'));
+    expect(manifest, contains('android:fullBackupContent="@xml/backup_rules"'));
+    expect(
+      manifest,
+      contains('android:dataExtractionRules="@xml/data_extraction_rules"'),
+    );
     expect(manifest, contains('android:usesCleartextTraffic="false"'));
   });
 
@@ -77,6 +81,7 @@ void main() {
     expect(privateStorage, contains('getApplicationSupportDirectory'));
     expect(privateStorage, contains('path.basename(fileName) != fileName'));
     expect(privateStorage, isNot(contains('getExternalStorageDirectory')));
+    expect(manifest, isNot(contains('<provider')));
   });
 
   test('production source contains no literal PIN or direct print calls', () {

@@ -1,9 +1,10 @@
 import 'dart:async';
-import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:veyra/core/errors/app_error_handler.dart';
 import 'package:veyra/core/errors/app_error_message.dart';
+import 'package:veyra/core/errors/debug_error_logs_screen.dart';
 import 'package:veyra/features/images/domain/entities/gallery_image.dart';
 import 'package:veyra/features/images/domain/entities/image_import_result.dart';
 import 'package:veyra/features/images/domain/repositories/image_library_repository.dart';
@@ -218,7 +219,8 @@ final class ImagesVaultScreen extends StatelessWidget {
           ),
         );
       }
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      AppErrorHandler.report(error, stackTrace);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AppErrorMessage.forError(error))),
@@ -257,14 +259,28 @@ final class ImagesVaultScreen extends StatelessWidget {
     if (result.imported.isEmpty) {
       await showDialog<void>(
         context: context,
-        builder: (context) => AlertDialog(
+        builder: (dialogContext) => AlertDialog(
           title: const Text('No se pudieron importar las imágenes'),
           content: Text(
             '${result.failed.length} elementos presentaron errores.',
           ),
           actions: <Widget>[
+            if (kDebugMode)
+              TextButton.icon(
+                key: const ValueKey<String>('view-image-import-errors'),
+                onPressed: () async {
+                  Navigator.of(dialogContext).pop();
+                  await Navigator.of(context).push<void>(
+                    MaterialPageRoute<void>(
+                      builder: (context) => const DebugErrorLogsScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.bug_report_outlined),
+                label: const Text('Ver detalles'),
+              ),
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(dialogContext).pop(),
               child: const Text('Aceptar'),
             ),
           ],

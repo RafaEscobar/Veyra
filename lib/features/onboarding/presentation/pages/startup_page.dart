@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:veyra/app/router/app_routes.dart';
+import 'package:veyra/core/errors/app_error_handler.dart';
+import 'package:veyra/core/errors/debug_error_logs_button.dart';
 import 'package:veyra/features/onboarding/domain/repositories/onboarding_repository.dart';
 
 final class StartupPage extends StatefulWidget {
@@ -32,7 +34,8 @@ final class _StartupPageState extends State<StartupPage> {
       context.goNamed(
         isCompleted ? AppRoutes.unlockName : AppRoutes.welcomeName,
       );
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      AppErrorHandler.report(error, stackTrace);
       if (mounted) {
         setState(() => _error = error);
       }
@@ -50,6 +53,8 @@ final class _StartupPageState extends State<StartupPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
                     const Text('No fue posible iniciar Veyra.'),
+                    const SizedBox(height: 8),
+                    const DebugErrorLogsButton(),
                     const SizedBox(height: 16),
                     FilledButton(
                       onPressed: () {

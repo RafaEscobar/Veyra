@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:mime/mime.dart';
 import 'package:uuid/uuid.dart';
 import 'package:veyra/core/crypto/crypto_service.dart';
+import 'package:veyra/core/errors/app_error_handler.dart';
 import 'package:veyra/core/errors/app_exception.dart';
 import 'package:veyra/core/errors/app_exception_mapper.dart';
 import 'package:veyra/core/performance/performance_monitor.dart';
@@ -72,18 +73,16 @@ final class ImageImportService {
         final GalleryImage image = images[index];
         try {
           imported.add(await _importOne(image));
-        } on AppException catch (error) {
+        } on AppException catch (error, stackTrace) {
+          AppErrorHandler.report(error, stackTrace, operation: 'image_import');
           failed.add(FailedImageImport(source: image, error: error));
-        } on Object catch (error) {
-          failed.add(
-            FailedImageImport(
-              source: image,
-              error: AppExceptionMapper.map(
-                error,
-                fallback: (cause) => ImageImportException(cause: cause),
-              ),
-            ),
+        } on Object catch (error, stackTrace) {
+          final AppException mapped = AppExceptionMapper.map(
+            error,
+            fallback: (cause) => ImageImportException(cause: cause),
           );
+          AppErrorHandler.report(mapped, stackTrace, operation: 'image_import');
+          failed.add(FailedImageImport(source: image, error: mapped));
         }
         onProgress?.call(index + 1, images.length);
       }
@@ -189,7 +188,8 @@ final class ImageImportService {
 
   Future<Uint8List?> _loadThumbnail(String id) async {
     try {
-      return await imageLibrary.loadThumbnail(id, size: 384);
+      final Uint8List? source = await imageLibrary.loadThumbnail(id, size: 384);
+      return source == null ? null : Uint8List.fromList(source);
     } on Object {
       return null;
     }

@@ -64,6 +64,62 @@ void main() {
     expect(vaultRepository.lastPageRequest, (1, 1));
   });
 
+  test('restored ciphertext without metadata remains undiscoverable', () async {
+    final VaultItem orphan = _item('orphan');
+    final File encrypted = await _writeEncryptedImage(
+      fileStorage: fileStorage,
+      vaultSession: vaultSession,
+      cryptoService: cryptoService,
+      directory: directory,
+      item: orphan,
+      bytes: Uint8List.fromList(<int>[1, 2, 3, 4]),
+    );
+
+    expect(await encrypted.exists(), isTrue);
+    expect(await service.loadPage(offset: 0, limit: 30), isEmpty);
+  });
+
+  test(
+    'restored metadata without ciphertext fails without plaintext',
+    () async {
+      final VaultItem item = _item('metadata-only');
+      vaultRepository.items.add(item);
+
+      await expectLater(
+        service.loadImage(item),
+        throwsA(isA<VaultSourceFileNotFoundException>()),
+      );
+      expect(vaultRepository.items, contains(item));
+      final Directory temporaryDirectory = Directory(
+        '${directory.path}/vault/tmp',
+      );
+      expect(await temporaryDirectory.exists(), isFalse);
+    },
+  );
+
+  test('tampered metadata cannot escape private vault paths', () async {
+    final VaultItem item = VaultItem(
+      id: 'tampered-metadata',
+      originalName: 'private.jpg',
+      encryptedFileName: '../outside.dat',
+      type: VaultItemType.image,
+      mimeType: 'image/jpeg',
+      size: 4,
+      createdAt: DateTime.utc(2025),
+      importedAt: DateTime.utc(2026),
+    );
+    final File outside = File('${directory.path}/outside.dat');
+    await outside.writeAsBytes(<int>[1, 2, 3, 4]);
+
+    await expectLater(
+      service.loadImage(item),
+      throwsA(isA<ImageVaultOperationException>()),
+    );
+
+    expect(await outside.readAsBytes(), <int>[1, 2, 3, 4]);
+    expect(await Directory('${directory.path}/vault/tmp').exists(), isFalse);
+  });
+
   test('decrypts only the requested thumbnail into memory', () async {
     final VaultItem item = _item('thumb', thumbnailPath: 'thumb.thumb');
     final Uint8List thumbnail = Uint8List.fromList(<int>[1, 2, 3, 4, 5]);

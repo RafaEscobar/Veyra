@@ -21,8 +21,9 @@ bóveda sin una acción explícita del usuario.
   y solo en compilaciones de depuración. No imprime excepciones, stack traces,
   NIP, respuestas, claves, rutas ni nombres de archivos.
 - **AndroidManifest:** los backups están desactivados con
-  `android:allowBackup="false"` y `android:fullBackupContent="false"`. El
-  tráfico HTTP sin cifrar también está desactivado. La única actividad
+  `android:allowBackup="false"`. Las reglas heredadas y modernas excluyen todos
+  los dominios tanto de copias en nube como de transferencias entre dispositivos.
+  El tráfico HTTP sin cifrar también está desactivado. La única actividad
   exportada es la actividad launcher.
 - **Permisos:** producción solicita lectura de imágenes y videos, incluido el
   acceso seleccionado de Android moderno. `READ_EXTERNAL_STORAGE` está limitado
@@ -64,5 +65,5 @@ bóveda sin una acción explícita del usuario.
 sin cifrar, permisos de producción, protección de pantalla, logs, NIP literales
 y uso de almacenamiento privado.
 
-Las reglas modernas y las pruebas de restauración se desarrollan por separado
-en el paso 3.12, que permanece pendiente.
+Las reglas modernas y las pruebas de restauración se documentan en
+`docs/android_backup_validation.md`.

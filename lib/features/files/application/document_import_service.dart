@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as path;
 import 'package:uuid/uuid.dart';
 import 'package:veyra/core/crypto/crypto_service.dart';
+import 'package:veyra/core/errors/app_error_handler.dart';
 import 'package:veyra/core/errors/app_exception.dart';
 import 'package:veyra/core/errors/app_exception_mapper.dart';
 import 'package:veyra/core/performance/performance_monitor.dart';
@@ -95,18 +96,20 @@ final class DocumentImportService {
       final PickedDocument document = documents[index];
       try {
         imported.add(await _importOne(document));
-      } on AppException catch (error) {
+      } on AppException catch (error, stackTrace) {
+        AppErrorHandler.report(error, stackTrace, operation: 'document_import');
         failed.add(FailedDocumentImport(source: document, error: error));
-      } on Object catch (error) {
-        failed.add(
-          FailedDocumentImport(
-            source: document,
-            error: AppExceptionMapper.map(
-              error,
-              fallback: (cause) => DocumentImportException(cause: cause),
-            ),
-          ),
+      } on Object catch (error, stackTrace) {
+        final AppException mapped = AppExceptionMapper.map(
+          error,
+          fallback: (cause) => DocumentImportException(cause: cause),
         );
+        AppErrorHandler.report(
+          mapped,
+          stackTrace,
+          operation: 'document_import',
+        );
+        failed.add(FailedDocumentImport(source: document, error: mapped));
       }
       onProgress?.call(index + 1, documents.length);
     }

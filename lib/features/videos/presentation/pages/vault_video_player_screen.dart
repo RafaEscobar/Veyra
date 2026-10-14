@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemChrome, SystemUiMode;
+import 'package:veyra/core/errors/app_error_handler.dart';
 import 'package:veyra/core/errors/app_error_message.dart';
 import 'package:veyra/core/errors/app_exception.dart';
 import 'package:veyra/core/security/screen_security_service.dart';
@@ -66,7 +67,8 @@ final class _VaultVideoPlayerScreenState extends State<VaultVideoPlayerScreen>
       if (mounted) {
         setState(() {});
       }
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      AppErrorHandler.report(error, stackTrace);
       if (mounted) {
         setState(() => _error = error);
       }
@@ -341,7 +343,8 @@ final class _VaultVideoPlayerScreenState extends State<VaultVideoPlayerScreen>
       if (mounted) {
         Navigator.of(context).pop(true);
       }
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      AppErrorHandler.report(error, stackTrace);
       if (mounted) {
         setState(() => _deleting = false);
         ScaffoldMessenger.of(context).showSnackBar(
