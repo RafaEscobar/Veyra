@@ -222,7 +222,7 @@ final class CryptoService {
         );
         final Uint8List cipherText = await _readExact(input, cipherChunkLength);
         final Uint8List macBytes = await _readExact(input, _macLength);
-        final List<int> clearText = await _cipher.decrypt(
+        final List<int> decryptedChunk = await _cipher.decrypt(
           SecretBox(
             cipherText,
             nonce: _nonceFor(parsedHeader.fileNonce, index),
@@ -231,12 +231,11 @@ final class CryptoService {
           secretKey: secretKey,
           aad: _chunkAssociatedData(header, index),
         );
+        final Uint8List clearText = Uint8List.fromList(decryptedChunk);
         try {
           await output.writeFrom(clearText);
         } finally {
-          if (clearText is Uint8List) {
-            clearText.fillRange(0, clearText.length, 0);
-          }
+          clearText.fillRange(0, clearText.length, 0);
         }
       }
 

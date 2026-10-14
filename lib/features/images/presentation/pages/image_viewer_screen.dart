@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemChrome, SystemUiMode;
+import 'package:veyra/core/errors/app_error_handler.dart';
 import 'package:veyra/core/errors/app_error_message.dart';
 import 'package:veyra/core/security/screen_security_service.dart';
 import 'package:veyra/features/vault/domain/entities/vault_item.dart';
@@ -73,7 +74,8 @@ final class _ImageViewerScreenState extends State<ImageViewerScreen> {
         _imageBytes = bytes;
         _imageProvider = MemoryImage(bytes);
       });
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      AppErrorHandler.report(error, stackTrace);
       if (mounted) {
         setState(() => _error = error);
       }
@@ -219,7 +221,8 @@ final class _ImageViewerScreenState extends State<ImageViewerScreen> {
       if (mounted) {
         Navigator.of(context).pop(export ? 'export' : 'delete');
       }
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      AppErrorHandler.report(error, stackTrace);
       if (mounted) {
         setState(() => _busy = false);
         ScaffoldMessenger.of(context).showSnackBar(

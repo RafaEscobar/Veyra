@@ -28,7 +28,58 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Veyra'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('debug-error-logs')),
+      findsOneWidget,
+    );
   });
+
+  testWidgets('opens debug error logs beside the theme control', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      VeyraApp(
+        themeModeStorage: InMemoryThemeModeStorage(),
+        onboardingRepository: FakeOnboardingRepository(),
+        authenticationRepository: FakeAuthenticationRepository(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey<String>('debug-error-logs')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Logs de errores'), findsOneWidget);
+    expect(
+      find.text('No se han registrado errores en esta ejecución.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
+    'partial restore without security config never exposes vault metadata',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(
+        VeyraApp(
+          themeModeStorage: InMemoryThemeModeStorage(),
+          onboardingRepository: FakeOnboardingRepository(),
+          authenticationRepository: FakeAuthenticationRepository(),
+          vaultRepository: FakeVaultRepository(
+            counts: <VaultItemType, int>{
+              VaultItemType.image: 4,
+              VaultItemType.video: 3,
+              VaultItemType.file: 2,
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey<String>('start-onboarding')), findsOne);
+      expect(find.text('Mi bóveda'), findsNothing);
+      expect(find.text('4 elementos'), findsNothing);
+    },
+  );
 
   testWidgets('toggles and persists the selected theme', (
     WidgetTester tester,
@@ -413,6 +464,30 @@ void main() {
     expect(session.isUnlocked, isFalse);
     expect(cleaner.clearCount, 1);
     expect(find.text('Introduce tu NIP'), findsOneWidget);
+  });
+
+  testWidgets('closing the app destroys the unlocked vault session', (
+    WidgetTester tester,
+  ) async {
+    final VaultSession session = VaultSession();
+    await tester.pumpWidget(
+      VeyraApp(
+        themeModeStorage: InMemoryThemeModeStorage(),
+        onboardingRepository: FakeOnboardingRepository(completed: true),
+        authenticationRepository: SessionAuthenticationRepository(session),
+        recoveryRepository: FakeRecoveryRepository(),
+        vaultRepository: FakeVaultRepository(),
+        vaultSession: session,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await _enterPin(tester);
+    expect(session.isUnlocked, isTrue);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+
+    expect(session.isUnlocked, isFalse);
   });
 }
 

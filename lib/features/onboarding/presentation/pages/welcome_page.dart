@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:veyra/app/router/app_routes.dart';
 import 'package:veyra/app/theme/theme_toggle_button.dart';
 import 'package:veyra/core/constants/app_constants.dart';
+import 'package:veyra/core/errors/debug_error_logs_button.dart';
 import 'package:veyra/features/onboarding/presentation/cubit/onboarding_cubit.dart';
 
 final class WelcomePage extends StatelessWidget {
@@ -50,7 +51,16 @@ final class WelcomePage extends StatelessWidget {
                   ],
                 ),
               ),
-              Align(alignment: Alignment.topRight, child: ThemeToggleButton()),
+              const Align(
+                alignment: Alignment.topRight,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    DebugErrorLogsButton(),
+                    ThemeToggleButton(),
+                  ],
+                ),
+              ),
             ],
           ),
         ),

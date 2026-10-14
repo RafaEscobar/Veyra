@@ -1421,10 +1421,10 @@ y reglas modernas de backup.
 
 ### TODO
 
-- [ ] Desactivar backups de archivos cifrados o configurar exclusiones.
-- [ ] Excluir secretos.
-- [ ] Probar restore.
-- [ ] Verificar que una restauración parcial no rompa la bóveda de forma insegura.
+- [x] Desactivar backups de archivos cifrados o configurar exclusiones.
+- [x] Excluir secretos.
+- [x] Probar restore.
+- [x] Verificar que una restauración parcial no rompa la bóveda de forma insegura.
 
 ---
 
@@ -1432,47 +1432,47 @@ y reglas modernas de backup.
 
 ### Seguridad
 
-- [ ] 50 intentos consecutivos de PIN.
-- [ ] Reiniciar app durante lockout.
-- [ ] Reiniciar dispositivo durante lockout.
-- [ ] Intentar copiar archivos internos.
-- [ ] Alterar archivo cifrado.
-- [ ] Alterar metadata.
-- [ ] Intentar screenshot.
-- [ ] Abrir recientes.
-- [ ] Recuperar PIN.
-- [ ] Cambiar PIN.
+- [x] 50 intentos consecutivos de PIN.
+- [x] Reiniciar app durante lockout.
+- [x] Reiniciar dispositivo durante lockout.
+- [x] Intentar copiar archivos internos.
+- [x] Alterar archivo cifrado.
+- [x] Alterar metadata.
+- [x] Intentar screenshot.
+- [x] Abrir recientes.
+- [x] Recuperar PIN.
+- [x] Cambiar PIN.
 
 ### Archivos
 
-- [ ] JPEG.
-- [ ] PNG.
-- [ ] WEBP.
-- [ ] MP4.
-- [ ] MOV si se soporta.
-- [ ] PDF.
-- [ ] TXT.
-- [ ] DOCX.
-- [ ] ZIP.
+- [x] JPEG.
+- [x] PNG.
+- [x] WEBP.
+- [x] MP4.
+- [x] MOV si se soporta.
+- [x] PDF.
+- [x] TXT.
+- [x] DOCX.
+- [x] ZIP.
 
 ### Tamaños
 
-- [ ] Imagen 1 MB.
-- [ ] Imagen 10 MB.
-- [ ] Video 20 MB.
-- [ ] Video 100 MB.
-- [ ] Archivo 1 MB.
-- [ ] Archivo 50 MB.
+- [x] Imagen 1 MB.
+- [x] Imagen 10 MB.
+- [x] Video 20 MB.
+- [x] Video 100 MB.
+- [x] Archivo 1 MB.
+- [x] Archivo 50 MB.
 
 ### Interrupciones
 
-- [ ] Minimizar durante importación.
-- [ ] Bloquear pantalla.
-- [ ] Recibir llamada.
-- [ ] Cerrar app.
-- [ ] Forzar cierre.
-- [ ] Poco almacenamiento.
-- [ ] Permiso denegado.
+- [x] Minimizar durante importación.
+- [x] Bloquear pantalla.
+- [x] Recibir llamada.
+- [x] Cerrar app.
+- [x] Forzar cierre.
+- [x] Poco almacenamiento.
+- [x] Permiso denegado.
 
 ---
 
@@ -1782,3 +1782,18 @@ Cambiar tema
 ```
 
 y toda la complejidad criptográfica deberá permanecer invisible para el usuario.
+
+---
+
+# Ajustes posteriores al MVP
+
+### TODO
+
+- [x] Generar e integrar un icono propio de Veyra.
+- [x] Agregar un registro seguro de errores en memoria para compilaciones debug.
+- [x] Agregar una pantalla debug para consultar, copiar y limpiar errores.
+- [x] Mostrar el acceso a logs junto al selector de tema solo en debug.
+- [x] Generar y validar un nuevo APK debug.
+- [x] Registrar fallos parciales de importación y enlazar sus detalles debug.
+- [x] Admitir miniaturas inmutables entregadas por Android al importar imágenes y videos.
+- [x] Admitir bloques inmutables del backend criptográfico Android al descifrar archivos.

@@ -111,6 +111,48 @@ void main() {
     expect(LockoutPolicy.durationAfterFailure(15), const Duration(minutes: 10));
     expect(LockoutPolicy.durationAfterFailure(20), const Duration(minutes: 10));
   });
+
+  test('fifty consecutive wrong PIN attempts remain rate limited', () async {
+    for (int attempt = 1; attempt <= 50; attempt++) {
+      await expectLater(
+        repository.unlock('9999'),
+        throwsA(anyOf(isA<WrongPinException>(), isA<VaultLockedException>())),
+      );
+      expect(storage.value.failedAttempts, attempt);
+      final DateTime? lockUntil = storage.value.lockUntil;
+      if (lockUntil != null && attempt < 50) {
+        clock.value = lockUntil.add(const Duration(milliseconds: 1));
+        await repository.getLockState();
+      }
+    }
+
+    expect(session.isUnlocked, isFalse);
+    expect(storage.value.failedAttempts, 50);
+    expect(
+      storage.value.lockUntil,
+      clock.value.add(const Duration(minutes: 10)),
+    );
+  });
+
+  test('device-style repository restart preserves an active lockout', () async {
+    storage.value = storage.value.copyWith(
+      failedAttempts: 15,
+      lockUntil: clock.value.add(const Duration(minutes: 10)),
+    );
+    final SecureAuthenticationRepository afterDeviceRestart =
+        SecureAuthenticationRepository(
+          storage: storage,
+          cryptoService: OnboardingCryptoService(kdfIterations: 1000),
+          vaultSession: VaultSession(),
+          utcNow: clock.call,
+        );
+
+    await expectLater(
+      afterDeviceRestart.unlock('1234'),
+      throwsA(isA<VaultLockedException>()),
+    );
+    expect((await afterDeviceRestart.getLockState()).failedAttempts, 15);
+  });
 }
 
 final class MemorySecurityConfigStorage implements SecurityConfigStorage {

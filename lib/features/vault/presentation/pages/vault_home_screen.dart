@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:veyra/app/router/app_routes.dart';
 import 'package:veyra/app/theme/theme_toggle_button.dart';
+import 'package:veyra/core/errors/debug_error_logs_button.dart';
 import 'package:veyra/features/vault/presentation/cubit/vault_home_cubit.dart';
 import 'package:veyra/features/vault/presentation/cubit/vault_home_state.dart';
 import 'package:veyra/features/vault/presentation/widgets/vault_category_card.dart';
@@ -15,7 +16,11 @@ final class VaultHomeScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mi bóveda'),
-        actions: const <Widget>[ThemeToggleButton(), SizedBox(width: 8)],
+        actions: const <Widget>[
+          DebugErrorLogsButton(),
+          ThemeToggleButton(),
+          SizedBox(width: 8),
+        ],
       ),
       body: BlocBuilder<VaultHomeCubit, VaultHomeState>(
         builder: (context, state) {

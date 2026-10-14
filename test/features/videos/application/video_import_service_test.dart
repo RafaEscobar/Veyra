@@ -49,7 +49,7 @@ void main() {
     await source.writeAsBytes(videoBytes);
     videoLibrary.files['video-1'] = source;
     final Uint8List thumbnailBytes = Uint8List.fromList(<int>[1, 2, 3, 4]);
-    videoLibrary.thumbnails['video-1'] = thumbnailBytes;
+    videoLibrary.thumbnails['video-1'] = thumbnailBytes.asUnmodifiableView();
     final VideoImportService service = _service(
       videoLibrary: videoLibrary,
       vaultRepository: vaultRepository,
@@ -82,7 +82,7 @@ void main() {
       ),
     );
     expect(item.thumbnailPath, isNot('video-id-0.thumb'));
-    expect(thumbnailBytes, everyElement(0));
+    expect(thumbnailBytes, <int>[1, 2, 3, 4]);
 
     final File encrypted = File(
       '${directory.path}/vault/videos/video-id-0.dat',
@@ -132,6 +132,66 @@ void main() {
     expect(videoLibrary.cacheCleared, isFalse);
     await service.discardPreparedFiles();
     expect(videoLibrary.cacheCleared, isTrue);
+  });
+
+  test('imports MP4 and MOV videos', () async {
+    final File mp4 = File('${directory.path}/format.mp4');
+    final File mov = File('${directory.path}/format.mov');
+    await mp4.writeAsBytes(_mp4Bytes(128));
+    await mov.writeAsBytes(_movBytes(128));
+    videoLibrary.files
+      ..['mp4'] = mp4
+      ..['mov'] = mov;
+    final VideoImportService service = _service(
+      videoLibrary: videoLibrary,
+      vaultRepository: vaultRepository,
+      fileStorage: fileStorage,
+      vaultSession: vaultSession,
+      cryptoService: CryptoService(fileChunkSize: 1024),
+      idGenerator: () => 'format-video-${nextId++}',
+    );
+
+    final VideoImportResult result = await service.importVideos(<GalleryVideo>[
+      _galleryVideo('mp4', 'format.mp4'),
+      _galleryVideo('mov', 'format.mov'),
+    ]);
+
+    expect(result.failed, isEmpty);
+    expect(result.imported, hasLength(2));
+    expect(
+      result.imported.map((entry) => entry.item.mimeType).toSet(),
+      containsAll(<String>{'video/mp4', 'video/quicktime'}),
+    );
+  });
+
+  test('imports videos of 20 MB and 100 MB', () async {
+    const List<int> sizes = <int>[20 * 1024 * 1024, 100 * 1024 * 1024];
+    for (int index = 0; index < sizes.length; index++) {
+      videoLibrary.files['size-$index'] = await _createSparseFile(
+        '${directory.path}/size-$index.mp4',
+        sizes[index],
+        _mp4Bytes(32),
+      );
+    }
+    final VideoImportService service = _service(
+      videoLibrary: videoLibrary,
+      vaultRepository: vaultRepository,
+      fileStorage: fileStorage,
+      vaultSession: vaultSession,
+      cryptoService: CryptoService(fileChunkSize: 4 * 1024 * 1024),
+      idGenerator: () => 'sized-video-${nextId++}',
+    );
+
+    final VideoImportResult result = await service.importVideos(<GalleryVideo>[
+      _galleryVideo('size-0', 'twenty-megabytes.mp4'),
+      _galleryVideo('size-1', 'one-hundred-megabytes.mp4'),
+    ]);
+
+    expect(result.failed, isEmpty);
+    expect(
+      result.imported.map((entry) => entry.item.size),
+      orderedEquals(sizes),
+    );
   });
 
   test('keeps successful videos when other imports fail validation', () async {
@@ -249,6 +309,28 @@ Uint8List _mp4Bytes(int length) {
     bytes[index] = index % 251;
   }
   return bytes;
+}
+
+Uint8List _movBytes(int length) {
+  final Uint8List bytes = _mp4Bytes(length);
+  bytes.setRange(8, 12, <int>[0x71, 0x74, 0x20, 0x20]);
+  return bytes;
+}
+
+Future<File> _createSparseFile(
+  String filePath,
+  int length,
+  List<int> header,
+) async {
+  final File file = File(filePath);
+  final RandomAccessFile writer = await file.open(mode: FileMode.write);
+  try {
+    await writer.writeFrom(header);
+    await writer.truncate(length);
+  } finally {
+    await writer.close();
+  }
+  return file;
 }
 
 final class FakeVideoLibraryRepository implements VideoLibraryRepository {

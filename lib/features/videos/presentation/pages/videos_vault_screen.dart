@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:veyra/core/errors/app_error_handler.dart';
 import 'package:veyra/core/errors/app_error_message.dart';
 import 'package:veyra/features/vault/domain/entities/vault_item.dart';
 import 'package:veyra/features/vault/presentation/widgets/vault_content_state.dart';
@@ -198,7 +199,8 @@ final class VideosVaultScreen extends StatelessWidget {
           ),
         );
       }
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      AppErrorHandler.report(error, stackTrace);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AppErrorMessage.forError(error))),

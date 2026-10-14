@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path/path.dart' as path;
+import 'package:veyra/core/errors/app_error_handler.dart';
 import 'package:veyra/core/errors/app_error_message.dart';
 import 'package:veyra/features/files/domain/entities/document_import_result.dart';
 import 'package:veyra/features/files/presentation/cubit/document_import_cubit.dart';
@@ -232,7 +233,8 @@ final class FilesVaultScreen extends StatelessWidget {
           ),
         );
       }
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      AppErrorHandler.report(error, stackTrace);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AppErrorMessage.forError(error))),
@@ -275,7 +277,8 @@ final class FilesVaultScreen extends StatelessWidget {
           context,
         ).showSnackBar(const SnackBar(content: Text('Archivo eliminado.')));
       }
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      AppErrorHandler.report(error, stackTrace);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AppErrorMessage.forError(error))),

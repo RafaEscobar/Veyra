@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:veyra/core/errors/app_error_handler.dart';
 import 'package:veyra/core/errors/app_error_message.dart';
 import 'package:veyra/core/errors/app_exception.dart';
 import 'package:veyra/core/security/screen_security_service.dart';
@@ -128,7 +129,8 @@ final class _DocumentPreviewScreenState extends State<DocumentPreviewScreen> {
       if (mounted) {
         Navigator.of(context).pop(true);
       }
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      AppErrorHandler.report(error, stackTrace);
       if (mounted) {
         setState(() => _deleting = false);
         ScaffoldMessenger.of(context).showSnackBar(

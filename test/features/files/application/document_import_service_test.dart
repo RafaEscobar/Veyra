@@ -191,6 +191,85 @@ void main() {
     expect(result.imported.single.item.mimeType, 'text/csv');
   });
 
+  test('imports PDF, TXT, DOCX, and ZIP documents', () async {
+    const Map<String, String> expectedMimeTypes = <String, String>{
+      'pdf': 'application/pdf',
+      'txt': 'text/plain',
+      'docx':
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'zip': 'application/zip',
+    };
+    final List<PickedDocument> documents = <PickedDocument>[];
+    int id = 0;
+    for (final String extension in expectedMimeTypes.keys) {
+      final File source = File('${directory.path}/format.$extension');
+      await source.writeAsBytes(<int>[1, 2, 3, 4]);
+      documents.add(
+        PickedDocument(
+          name: 'format.$extension',
+          path: source.path,
+          extension: extension,
+        ),
+      );
+    }
+    final DocumentImportService service = _service(
+      picker: picker,
+      vaultRepository: vaultRepository,
+      fileStorage: fileStorage,
+      vaultSession: vaultSession,
+      cryptoService: CryptoService(fileChunkSize: 1024),
+      idGenerator: () => 'format-document-${id++}',
+    );
+
+    final DocumentImportResult result = await service.importDocuments(
+      documents,
+    );
+
+    expect(result.failed, isEmpty);
+    expect(
+      result.imported.map((entry) => entry.item.mimeType).toSet(),
+      expectedMimeTypes.values.toSet(),
+    );
+  });
+
+  test('imports documents of 1 MB and 50 MB', () async {
+    const List<int> sizes = <int>[1 * 1024 * 1024, 50 * 1024 * 1024];
+    final List<PickedDocument> documents = <PickedDocument>[];
+    for (int index = 0; index < sizes.length; index++) {
+      final File source = await _createSparseFile(
+        '${directory.path}/size-$index.pdf',
+        sizes[index],
+        <int>[0x25, 0x50, 0x44, 0x46],
+      );
+      documents.add(
+        PickedDocument(
+          name: 'size-$index.pdf',
+          path: source.path,
+          extension: 'pdf',
+        ),
+      );
+    }
+    int id = 0;
+    final DocumentImportService service = _service(
+      picker: picker,
+      vaultRepository: vaultRepository,
+      fileStorage: fileStorage,
+      vaultSession: vaultSession,
+      cryptoService: CryptoService(fileChunkSize: 4 * 1024 * 1024),
+      idGenerator: () => 'sized-document-${id++}',
+    );
+
+    final DocumentImportResult result = await service.importDocuments(
+      documents,
+    );
+
+    expect(result.failed, isEmpty);
+    expect(
+      result.imported.map((entry) => entry.item.size),
+      orderedEquals(sizes),
+    );
+  });
+
   test('reports a full-storage failure without creating metadata', () async {
     final File source = File('${directory.path}/full-storage.pdf');
     await source.writeAsBytes(<int>[0x25, 0x50, 0x44, 0x46, 1, 2, 3]);
@@ -217,6 +296,22 @@ void main() {
     expect(result.failed.single.error, isA<StorageFullException>());
     expect(vaultRepository.items, isEmpty);
   });
+}
+
+Future<File> _createSparseFile(
+  String filePath,
+  int length,
+  List<int> header,
+) async {
+  final File file = File(filePath);
+  final RandomAccessFile writer = await file.open(mode: FileMode.write);
+  try {
+    await writer.writeFrom(header);
+    await writer.truncate(length);
+  } finally {
+    await writer.close();
+  }
+  return file;
 }
 
 DocumentImportService _service({

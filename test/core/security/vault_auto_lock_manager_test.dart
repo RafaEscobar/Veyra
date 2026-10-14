@@ -61,4 +61,45 @@ void main() {
     expect(locks, 1);
     manager.dispose();
   });
+
+  testWidgets('screen lock beyond the timeout locks the vault on resume', (
+    tester,
+  ) async {
+    DateTime now = DateTime.utc(2026, 9, 29, 12);
+    int locks = 0;
+    final VaultAutoLockManager manager = VaultAutoLockManager(
+      timeout: const Duration(seconds: 30),
+      now: () => now,
+      onLock: () async => locks++,
+    )..activate();
+
+    manager.movedToBackground();
+    now = now.add(const Duration(minutes: 1));
+    manager.resumed();
+    await tester.pump();
+
+    expect(locks, 1);
+    manager.dispose();
+  });
+
+  testWidgets('brief incoming call keeps the vault session active', (
+    tester,
+  ) async {
+    DateTime now = DateTime.utc(2026, 9, 29, 12);
+    int locks = 0;
+    final VaultAutoLockManager manager = VaultAutoLockManager(
+      timeout: const Duration(seconds: 30),
+      now: () => now,
+      onLock: () async => locks++,
+    )..activate();
+
+    manager.movedToBackground();
+    now = now.add(const Duration(seconds: 5));
+    manager.resumed();
+    await tester.pump();
+
+    expect(locks, 0);
+    expect(manager.isActive, isTrue);
+    manager.dispose();
+  });
 }

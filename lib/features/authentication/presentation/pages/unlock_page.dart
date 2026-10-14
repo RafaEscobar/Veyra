@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:veyra/app/router/app_routes.dart';
+import 'package:veyra/app/theme/theme_toggle_button.dart';
+import 'package:veyra/core/errors/debug_error_logs_button.dart';
 import 'package:veyra/core/widgets/numeric_keypad.dart';
 import 'package:veyra/core/widgets/pin_indicator.dart';
 import 'package:veyra/features/authentication/presentation/cubit/unlock_cubit.dart';
@@ -38,67 +40,85 @@ final class _UnlockPageState extends State<UnlockPage> {
         final UnlockCubit cubit = context.read<UnlockCubit>();
         return Scaffold(
           body: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: MediaQuery.sizeOf(context).height - 64,
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    Icon(
-                      Icons.lock_outline_rounded,
-                      size: 56,
-                      color: Theme.of(context).colorScheme.primary,
+            child: Stack(
+              children: <Widget>[
+                SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 32,
+                  ),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: MediaQuery.sizeOf(context).height - 64,
                     ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Mi bóveda',
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Introduce tu NIP',
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
-                    if (widget.showRecoverySuccess) ...<Widget>[
-                      const SizedBox(height: 16),
-                      Semantics(
-                        liveRegion: true,
-                        child: Text(
-                          'NIP actualizado correctamente.',
-                          key: const ValueKey<String>('recovery-success'),
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          textAlign: TextAlign.center,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget>[
+                        Icon(
+                          Icons.lock_outline_rounded,
+                          size: 56,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
-                      ),
-                    ],
-                    const SizedBox(height: 24),
-                    PinIndicator(filledCount: state.pinLength),
-                    SizedBox(
-                      height: 56,
-                      child: Center(child: _StatusMessage(state: state)),
+                        const SizedBox(height: 20),
+                        Text(
+                          'Mi bóveda',
+                          style: Theme.of(context).textTheme.headlineMedium,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Introduce tu NIP',
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                        if (widget.showRecoverySuccess) ...<Widget>[
+                          const SizedBox(height: 16),
+                          Semantics(
+                            liveRegion: true,
+                            child: Text(
+                              'NIP actualizado correctamente.',
+                              key: const ValueKey<String>('recovery-success'),
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 24),
+                        PinIndicator(filledCount: state.pinLength),
+                        SizedBox(
+                          height: 56,
+                          child: Center(child: _StatusMessage(state: state)),
+                        ),
+                        NumericKeypad(
+                          enabled: state.acceptsInput,
+                          onDigitPressed: cubit.addDigit,
+                          onDeletePressed: cubit.deleteDigit,
+                        ),
+                        const SizedBox(height: 12),
+                        TextButton(
+                          key: const ValueKey<String>('forgot-pin'),
+                          onPressed: () async {
+                            await context.pushNamed(AppRoutes.recoveryName);
+                          },
+                          child: const Text('¿Olvidaste tu NIP?'),
+                        ),
+                      ],
                     ),
-                    NumericKeypad(
-                      enabled: state.acceptsInput,
-                      onDigitPressed: cubit.addDigit,
-                      onDeletePressed: cubit.deleteDigit,
-                    ),
-                    const SizedBox(height: 12),
-                    TextButton(
-                      key: const ValueKey<String>('forgot-pin'),
-                      onPressed: () async {
-                        await context.pushNamed(AppRoutes.recoveryName);
-                      },
-                      child: const Text('¿Olvidaste tu NIP?'),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+                const Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      DebugErrorLogsButton(),
+                      ThemeToggleButton(),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         );
