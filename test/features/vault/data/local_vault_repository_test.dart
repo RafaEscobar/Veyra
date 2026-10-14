@@ -7,7 +7,9 @@ import 'package:veyra/features/vault/data/database/vault_database_migrations.dar
 import 'package:veyra/features/vault/data/database/vault_database_schema.dart';
 import 'package:veyra/features/vault/data/database/vault_items_dao.dart';
 import 'package:veyra/features/vault/data/repositories/local_vault_repository.dart';
+import 'package:veyra/features/vault/domain/entities/vault_folder.dart';
 import 'package:veyra/features/vault/domain/entities/vault_item.dart';
+import 'package:veyra/features/vault/domain/repositories/vault_folder_repository.dart';
 import 'package:veyra/features/vault/domain/repositories/vault_repository.dart';
 
 void main() {
@@ -173,6 +175,84 @@ void main() {
     expect(await repository.countByType(VaultItemType.file), 1);
   });
 
+  test(
+    'creates folders, moves items, and returns them to root on delete',
+    () async {
+      final VaultFolderRepository folderRepository =
+          repository as VaultFolderRepository;
+      final VaultItem image = _item(
+        id: 'wallpaper',
+        encryptedFileName: 'wallpaper.dat',
+        type: VaultItemType.image,
+      );
+      final VaultItem video = _item(
+        id: 'clip',
+        encryptedFileName: 'clip.dat',
+        type: VaultItemType.video,
+      );
+      final VaultFolder folder = VaultFolder(
+        id: 'wallpapers',
+        name: 'Fondos de pantalla',
+        type: VaultItemType.image,
+        createdAt: DateTime.utc(2026, 10, 14),
+      );
+      await repository.insert(image);
+      await repository.insert(video);
+      await folderRepository.insertFolder(folder);
+
+      expect(
+        await folderRepository.getItemsPageByFolder(
+          VaultItemType.image,
+          folderId: null,
+          limit: 20,
+          offset: 0,
+        ),
+        <VaultItem>[image],
+      );
+      expect(
+        await folderRepository.moveItemToFolder(image.id, folder.id),
+        isTrue,
+      );
+      final List<VaultItem> folderItems = await folderRepository
+          .getItemsPageByFolder(
+            VaultItemType.image,
+            folderId: folder.id,
+            limit: 20,
+            offset: 0,
+          );
+      expect(folderItems.single.id, image.id);
+      expect(folderItems.single.folderId, folder.id);
+      expect(
+        (await folderRepository.getFoldersByType(
+          VaultItemType.image,
+        )).single.itemCount,
+        1,
+      );
+      await expectLater(
+        folderRepository.moveItemToFolder(video.id, folder.id),
+        throwsArgumentError,
+      );
+      await expectLater(
+        folderRepository.insertFolder(
+          VaultFolder(
+            id: 'duplicate',
+            name: 'fondos DE PANTALLA',
+            type: VaultItemType.image,
+            createdAt: DateTime.utc(2026, 10, 15),
+          ),
+        ),
+        throwsA(isA<DatabaseException>()),
+      );
+
+      expect(await folderRepository.deleteFolder(folder.id), isTrue);
+      expect(await repository.getById(image.id), image);
+      expect(
+        await folderRepository.getFoldersByType(VaultItemType.image),
+        isEmpty,
+      );
+    },
+  );
+
   test('preserves metadata after closing and reopening the database', () async {
     final Directory directory = await Directory.systemTemp.createTemp(
       'veyra-database-restart-',
@@ -243,8 +323,16 @@ void main() {
         );
 
     expect(columns.map((column) => column['name']), contains('duration_ms'));
+    expect(columns.map((column) => column['name']), contains('folder_id'));
+    final List<Map<String, Object?>> folderTable =
+        await (await migratedDatabase.instance).rawQuery(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+          <Object>[VaultDatabaseSchema.foldersTable],
+        );
+    expect(folderTable, isNotEmpty);
     expect(legacy?.originalName, 'legacy.mp4');
     expect(legacy?.duration, isNull);
+    expect(legacy?.folderId, isNull);
 
     await migratedDatabase.close();
     await directory.delete(recursive: true);

@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:veyra/features/files/domain/entities/document_import_result.dart';
+import 'package:veyra/features/vault/domain/entities/vault_folder.dart';
 import 'package:veyra/features/vault/domain/entities/vault_item.dart';
 
 enum DocumentImportStatus {
@@ -21,7 +22,9 @@ final class DocumentImportState extends Equatable {
     required this.total,
     required this.hasMore,
     required this.isLoadingMore,
+    required this.folders,
     this.result,
+    this.currentFolder,
   });
 
   const DocumentImportState.initial()
@@ -31,7 +34,9 @@ final class DocumentImportState extends Equatable {
       total = 0,
       hasMore = true,
       isLoadingMore = false,
-      result = null;
+      folders = const <VaultFolder>[],
+      result = null,
+      currentFolder = null;
 
   final DocumentImportStatus status;
   final List<VaultItem> items;
@@ -39,7 +44,9 @@ final class DocumentImportState extends Equatable {
   final int total;
   final bool hasMore;
   final bool isLoadingMore;
+  final List<VaultFolder> folders;
   final DocumentImportResult? result;
+  final VaultFolder? currentFolder;
 
   double? get progress => total == 0 ? null : completed / total;
 
@@ -50,7 +57,10 @@ final class DocumentImportState extends Equatable {
     int? total,
     bool? hasMore,
     bool? isLoadingMore,
+    List<VaultFolder>? folders,
     DocumentImportResult? result,
+    VaultFolder? currentFolder,
+    bool clearCurrentFolder = false,
   }) {
     return DocumentImportState(
       status: status ?? this.status,
@@ -59,7 +69,11 @@ final class DocumentImportState extends Equatable {
       total: total ?? this.total,
       hasMore: hasMore ?? this.hasMore,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      folders: folders ?? this.folders,
       result: result,
+      currentFolder: clearCurrentFolder
+          ? null
+          : currentFolder ?? this.currentFolder,
     );
   }
 
@@ -71,6 +85,8 @@ final class DocumentImportState extends Equatable {
     total,
     hasMore,
     isLoadingMore,
+    folders,
     result,
+    currentFolder,
   ];
 }

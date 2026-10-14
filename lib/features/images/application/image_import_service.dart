@@ -54,16 +54,18 @@ final class ImageImportService {
   Future<ImageImportResult> importImages(
     List<GalleryImage> images, {
     ImageImportProgress? onProgress,
+    String? folderId,
   }) {
     return performanceMonitor.measure(
       PerformanceOperation.imageImport,
-      () => _importImages(images, onProgress: onProgress),
+      () => _importImages(images, onProgress: onProgress, folderId: folderId),
     );
   }
 
   Future<ImageImportResult> _importImages(
     List<GalleryImage> images, {
     ImageImportProgress? onProgress,
+    String? folderId,
   }) async {
     final List<ImportedImage> imported = <ImportedImage>[];
     final List<FailedImageImport> failed = <FailedImageImport>[];
@@ -72,7 +74,7 @@ final class ImageImportService {
       for (int index = 0; index < images.length; index++) {
         final GalleryImage image = images[index];
         try {
-          imported.add(await _importOne(image));
+          imported.add(await _importOne(image, folderId: folderId));
         } on AppException catch (error, stackTrace) {
           AppErrorHandler.report(error, stackTrace, operation: 'image_import');
           failed.add(FailedImageImport(source: image, error: error));
@@ -100,7 +102,10 @@ final class ImageImportService {
     return imageLibrary.deleteOriginals(sourceIds);
   }
 
-  Future<ImportedImage> _importOne(GalleryImage image) async {
+  Future<ImportedImage> _importOne(
+    GalleryImage image, {
+    required String? folderId,
+  }) async {
     final File? sourceFile = await imageLibrary.loadOriginal(image.id);
     if (sourceFile == null || !await sourceFile.exists()) {
       throw const VaultSourceFileNotFoundException();
@@ -172,6 +177,7 @@ final class ImageImportService {
         createdAt: image.createdAt.toUtc(),
         importedAt: _utcNow(),
         thumbnailPath: thumbnailFile == null ? null : thumbnailFileName,
+        folderId: folderId,
       );
       await vaultRepository.insert(item);
       metadataSaved = true;

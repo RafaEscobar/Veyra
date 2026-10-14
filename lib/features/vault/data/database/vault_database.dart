@@ -54,10 +54,16 @@ final class VaultDatabase {
           if (version >= 2) {
             await VaultDatabaseMigrations.migrateVersion1To2(database);
           }
+          if (version >= 3) {
+            await VaultDatabaseMigrations.migrateVersion2To3(database);
+          }
         },
         onUpgrade: (database, oldVersion, newVersion) async {
           if (oldVersion < 2 && newVersion >= 2) {
             await VaultDatabaseMigrations.migrateVersion1To2(database);
+          }
+          if (oldVersion < 3 && newVersion >= 3) {
+            await VaultDatabaseMigrations.migrateVersion2To3(database);
           }
         },
       ),

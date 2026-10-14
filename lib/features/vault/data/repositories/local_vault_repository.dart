@@ -1,9 +1,14 @@
 import 'package:veyra/features/vault/data/database/vault_items_dao.dart';
+import 'package:veyra/features/vault/domain/entities/vault_folder.dart';
 import 'package:veyra/features/vault/domain/entities/vault_item.dart';
+import 'package:veyra/features/vault/domain/repositories/vault_folder_repository.dart';
 import 'package:veyra/features/vault/domain/repositories/vault_repository.dart';
 
 final class LocalVaultRepository
-    implements VaultRepository, PaginatedVaultRepository {
+    implements
+        VaultRepository,
+        PaginatedVaultRepository,
+        VaultFolderRepository {
   const LocalVaultRepository(this._dao);
 
   final VaultItemsDao _dao;
@@ -36,4 +41,35 @@ final class LocalVaultRepository
 
   @override
   Future<bool> update(VaultItem item) => _dao.update(item);
+
+  @override
+  Future<bool> deleteFolder(String id) => _dao.deleteFolder(id);
+
+  @override
+  Future<List<VaultFolder>> getFoldersByType(VaultItemType type) {
+    return _dao.getFoldersByType(type);
+  }
+
+  @override
+  Future<List<VaultItem>> getItemsPageByFolder(
+    VaultItemType type, {
+    required String? folderId,
+    required int limit,
+    required int offset,
+  }) {
+    return _dao.getItemsPageByFolder(
+      type,
+      folderId: folderId,
+      limit: limit,
+      offset: offset,
+    );
+  }
+
+  @override
+  Future<void> insertFolder(VaultFolder folder) => _dao.insertFolder(folder);
+
+  @override
+  Future<bool> moveItemToFolder(String itemId, String? folderId) {
+    return _dao.moveItemToFolder(itemId, folderId);
+  }
 }

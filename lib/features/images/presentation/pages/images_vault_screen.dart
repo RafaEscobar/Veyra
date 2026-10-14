@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -12,10 +13,13 @@ import 'package:veyra/features/images/presentation/cubit/image_import_cubit.dart
 import 'package:veyra/features/images/presentation/cubit/image_import_state.dart';
 import 'package:veyra/features/images/presentation/pages/image_asset_picker_screen.dart';
 import 'package:veyra/features/images/presentation/pages/image_viewer_screen.dart';
+import 'package:veyra/features/vault/domain/entities/vault_folder.dart';
 import 'package:veyra/features/vault/domain/entities/vault_item.dart';
 import 'package:veyra/features/vault/presentation/widgets/vault_content_state.dart';
+import 'package:veyra/features/vault/presentation/widgets/vault_folder_dialogs.dart';
+import 'package:veyra/features/vault/presentation/widgets/vault_folder_section.dart';
 
-enum _ImageAction { export, delete }
+enum _ImageAction { move, export, delete }
 
 final class ImagesVaultScreen extends StatelessWidget {
   const ImagesVaultScreen({super.key});
@@ -25,51 +29,87 @@ final class ImagesVaultScreen extends StatelessWidget {
     return BlocBuilder<ImageImportCubit, ImageImportState>(
       builder: (context, state) {
         final bool importing = state.status == ImageImportStatus.importing;
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('Imágenes'),
-            actions: <Widget>[
-              IconButton(
-                key: const ValueKey<String>('toggle-image-names'),
-                onPressed: context.read<ImageImportCubit>().toggleNames,
-                tooltip: state.showNames
-                    ? 'Ocultar nombres'
-                    : 'Mostrar nombres',
-                icon: Icon(
-                  state.showNames
-                      ? Icons.label_off_outlined
-                      : Icons.label_outline,
-                ),
-              ),
-            ],
-          ),
-          body: SafeArea(
-            child: Column(
-              children: <Widget>[
-                if (importing) ...<Widget>[
-                  LinearProgressIndicator(value: state.progress),
-                  const SizedBox(height: 8),
-                  Text('Importando ${state.completed} de ${state.total}'),
-                ],
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 180),
-                    child: _buildGrid(context, state),
+        final ImageImportCubit cubit = context.read<ImageImportCubit>();
+        return PopScope(
+          canPop: state.currentFolder == null,
+          onPopInvokedWithResult: (didPop, result) {
+            if (!didPop) {
+              unawaited(cubit.leaveFolder());
+            }
+          },
+          child: Scaffold(
+            appBar: AppBar(
+              leading: state.currentFolder == null
+                  ? null
+                  : IconButton(
+                      onPressed: cubit.leaveFolder,
+                      tooltip: 'Volver',
+                      icon: const Icon(Icons.arrow_back),
+                    ),
+              title: Text(state.currentFolder?.name ?? 'Imágenes'),
+              actions: <Widget>[
+                if (state.currentFolder == null)
+                  IconButton(
+                    key: const ValueKey<String>('create-image-folder'),
+                    onPressed: () => _createFolder(context),
+                    tooltip: 'Crear carpeta',
+                    icon: const Icon(Icons.create_new_folder_outlined),
+                  ),
+                IconButton(
+                  key: const ValueKey<String>('toggle-image-names'),
+                  onPressed: context.read<ImageImportCubit>().toggleNames,
+                  tooltip: state.showNames
+                      ? 'Ocultar nombres'
+                      : 'Mostrar nombres',
+                  icon: Icon(
+                    state.showNames
+                        ? Icons.label_off_outlined
+                        : Icons.label_outline,
                   ),
                 ),
-                if (state.items.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-                    child: FilledButton.icon(
-                      key: const ValueKey<String>('add-images'),
-                      onPressed: importing
-                          ? null
-                          : () => _selectImages(context),
-                      icon: const Icon(Icons.add_photo_alternate_outlined),
-                      label: const Text('Agregar imágenes'),
+              ],
+            ),
+            body: SafeArea(
+              child: Column(
+                children: <Widget>[
+                  if (importing) ...<Widget>[
+                    LinearProgressIndicator(value: state.progress),
+                    const SizedBox(height: 8),
+                    Text('Importando ${state.completed} de ${state.total}'),
+                  ],
+                  Expanded(
+                    child: Column(
+                      children: <Widget>[
+                        if (state.currentFolder == null)
+                          VaultFolderSection(
+                            folders: state.folders,
+                            onOpen: cubit.enterFolder,
+                            onDelete: (folder) =>
+                                _deleteFolder(context, folder),
+                          ),
+                        Expanded(
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 180),
+                            child: _buildGrid(context, state),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-              ],
+                  if (state.items.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+                      child: FilledButton.icon(
+                        key: const ValueKey<String>('add-images'),
+                        onPressed: importing
+                            ? null
+                            : () => _selectImages(context),
+                        icon: const Icon(Icons.add_photo_alternate_outlined),
+                        label: const Text('Agregar imágenes'),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         );
@@ -168,6 +208,10 @@ final class ImagesVaultScreen extends StatelessWidget {
     VaultItem item,
     _ImageAction action,
   ) async {
+    if (action == _ImageAction.move) {
+      await _moveItem(context, item);
+      return;
+    }
     final bool confirmed =
         await showDialog<bool>(
           context: context,
@@ -224,6 +268,69 @@ final class ImagesVaultScreen extends StatelessWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AppErrorMessage.forError(error))),
+        );
+      }
+    }
+  }
+
+  Future<void> _createFolder(BuildContext context) async {
+    final String? name = await showCreateVaultFolderDialog(context);
+    if (name == null || !context.mounted) {
+      return;
+    }
+    try {
+      await context.read<ImageImportCubit>().createFolder(name);
+    } on Object catch (error, stackTrace) {
+      AppErrorHandler.report(error, stackTrace);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo crear la carpeta. Revisa el nombre.'),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteFolder(BuildContext context, VaultFolder folder) async {
+    if (!await confirmDeleteVaultFolder(context, folder) || !context.mounted) {
+      return;
+    }
+    try {
+      await context.read<ImageImportCubit>().deleteFolder(folder);
+    } on Object catch (error, stackTrace) {
+      AppErrorHandler.report(error, stackTrace);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo eliminar la carpeta.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _moveItem(BuildContext context, VaultItem item) async {
+    final ImageImportCubit cubit = context.read<ImageImportCubit>();
+    final VaultFolderDestination? destination =
+        await showMoveToVaultFolderDialog(
+          context,
+          folders: cubit.state.folders,
+          currentFolderId: item.folderId,
+        );
+    if (destination == null || !context.mounted) {
+      return;
+    }
+    try {
+      await cubit.moveToFolder(item, destination.folderId);
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Imagen movida.')));
+      }
+    } on Object catch (error, stackTrace) {
+      AppErrorHandler.report(error, stackTrace);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo mover la imagen.')),
         );
       }
     }
@@ -404,6 +511,10 @@ final class _VaultImageTileState extends State<_VaultImageTile> {
                   color: Theme.of(context).colorScheme.surface,
                   itemBuilder: (context) =>
                       const <PopupMenuEntry<_ImageAction>>[
+                        PopupMenuItem<_ImageAction>(
+                          value: _ImageAction.move,
+                          child: Text('Mover a carpeta'),
+                        ),
                         PopupMenuItem<_ImageAction>(
                           value: _ImageAction.export,
                           child: Text('Sacar de la bóveda'),

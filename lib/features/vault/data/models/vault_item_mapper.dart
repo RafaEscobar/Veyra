@@ -13,6 +13,7 @@ abstract final class VaultItemMapper {
       'imported_at': item.importedAt.toUtc().millisecondsSinceEpoch,
       'thumbnail_path': item.thumbnailPath,
       'duration_ms': item.duration?.inMilliseconds,
+      'folder_id': item.folderId,
     };
   }
 
@@ -37,6 +38,7 @@ abstract final class VaultItemMapper {
         final int milliseconds => Duration(milliseconds: milliseconds),
         _ => null,
       },
+      folderId: map['folder_id'] as String?,
     );
   }
 }

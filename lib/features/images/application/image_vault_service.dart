@@ -12,6 +12,7 @@ import 'package:veyra/core/security/vault_session.dart';
 import 'package:veyra/features/images/domain/repositories/image_library_repository.dart';
 import 'package:veyra/features/vault/application/vault_deletion_service.dart';
 import 'package:veyra/features/vault/domain/entities/vault_item.dart';
+import 'package:veyra/features/vault/domain/repositories/vault_folder_repository.dart';
 import 'package:veyra/features/vault/domain/repositories/vault_repository.dart';
 import 'package:veyra/features/vault/domain/services/vault_file_storage.dart';
 
@@ -42,8 +43,20 @@ final class ImageVaultService {
   final LinkedHashMap<String, Uint8List> _thumbnailCache =
       LinkedHashMap<String, Uint8List>();
 
-  Future<List<VaultItem>> loadPage({required int offset, required int limit}) {
+  Future<List<VaultItem>> loadPage({
+    required int offset,
+    required int limit,
+    String? folderId,
+  }) {
     final VaultRepository repository = vaultRepository;
+    if (repository is VaultFolderRepository) {
+      return (repository as VaultFolderRepository).getItemsPageByFolder(
+        VaultItemType.image,
+        folderId: folderId,
+        limit: limit,
+        offset: offset,
+      );
+    }
     if (repository is PaginatedVaultRepository) {
       return (repository as PaginatedVaultRepository).getItemsPageByType(
         VaultItemType.image,

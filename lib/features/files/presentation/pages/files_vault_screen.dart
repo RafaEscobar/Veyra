@@ -10,11 +10,14 @@ import 'package:veyra/features/files/presentation/cubit/document_import_cubit.da
 import 'package:veyra/features/files/presentation/cubit/document_import_state.dart';
 import 'package:veyra/features/files/presentation/pages/document_preview_screen.dart';
 import 'package:veyra/features/files/presentation/widgets/vault_file_icon.dart';
+import 'package:veyra/features/vault/domain/entities/vault_folder.dart';
 import 'package:veyra/features/vault/domain/entities/vault_item.dart';
 import 'package:veyra/features/vault/domain/services/external_file_destination.dart';
 import 'package:veyra/features/vault/presentation/widgets/vault_content_state.dart';
+import 'package:veyra/features/vault/presentation/widgets/vault_folder_dialogs.dart';
+import 'package:veyra/features/vault/presentation/widgets/vault_folder_section.dart';
 
-enum _DocumentAction { preview, export, delete }
+enum _DocumentAction { preview, move, export, delete }
 
 final class FilesVaultScreen extends StatelessWidget {
   const FilesVaultScreen({super.key});
@@ -29,35 +32,76 @@ final class FilesVaultScreen extends StatelessWidget {
           DocumentImportStatus.exporting,
           DocumentImportStatus.deleting,
         }.contains(state.status);
-        return Scaffold(
-          appBar: AppBar(title: const Text('Archivos')),
-          body: SafeArea(
-            child: Column(
-              children: <Widget>[
-                if (state.status == DocumentImportStatus.importing) ...<Widget>[
-                  LinearProgressIndicator(value: state.progress),
-                  const SizedBox(height: 8),
-                  Text('Importando ${state.completed} de ${state.total}'),
-                ] else if (state.status == DocumentImportStatus.exporting ||
-                    state.status == DocumentImportStatus.deleting)
-                  const LinearProgressIndicator(),
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 180),
-                    child: _buildList(context, state, busy),
-                  ),
-                ),
-                if (state.items.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-                    child: FilledButton.icon(
-                      key: const ValueKey<String>('add-files'),
-                      onPressed: busy ? null : () => _selectFiles(context),
-                      icon: const Icon(Icons.note_add_outlined),
-                      label: const Text('Agregar archivos'),
+        final DocumentImportCubit cubit = context.read<DocumentImportCubit>();
+        return PopScope(
+          canPop: state.currentFolder == null,
+          onPopInvokedWithResult: (didPop, result) {
+            if (!didPop) {
+              unawaited(cubit.leaveFolder());
+            }
+          },
+          child: Scaffold(
+            appBar: AppBar(
+              leading: state.currentFolder == null
+                  ? null
+                  : IconButton(
+                      onPressed: cubit.leaveFolder,
+                      tooltip: 'Volver',
+                      icon: const Icon(Icons.arrow_back),
                     ),
+              title: Text(state.currentFolder?.name ?? 'Archivos'),
+              actions: <Widget>[
+                if (state.currentFolder == null)
+                  IconButton(
+                    key: const ValueKey<String>('create-file-folder'),
+                    onPressed: () => _createFolder(context),
+                    tooltip: 'Crear carpeta',
+                    icon: const Icon(Icons.create_new_folder_outlined),
                   ),
               ],
+            ),
+            body: SafeArea(
+              child: Column(
+                children: <Widget>[
+                  if (state.status ==
+                      DocumentImportStatus.importing) ...<Widget>[
+                    LinearProgressIndicator(value: state.progress),
+                    const SizedBox(height: 8),
+                    Text('Importando ${state.completed} de ${state.total}'),
+                  ] else if (state.status == DocumentImportStatus.exporting ||
+                      state.status == DocumentImportStatus.deleting)
+                    const LinearProgressIndicator(),
+                  Expanded(
+                    child: Column(
+                      children: <Widget>[
+                        if (state.currentFolder == null)
+                          VaultFolderSection(
+                            folders: state.folders,
+                            onOpen: cubit.enterFolder,
+                            onDelete: (folder) =>
+                                _deleteFolder(context, folder),
+                          ),
+                        Expanded(
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 180),
+                            child: _buildList(context, state, busy),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (state.items.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+                      child: FilledButton.icon(
+                        key: const ValueKey<String>('add-files'),
+                        onPressed: busy ? null : () => _selectFiles(context),
+                        icon: const Icon(Icons.note_add_outlined),
+                        label: const Text('Agregar archivos'),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         );
@@ -139,6 +183,10 @@ final class FilesVaultScreen extends StatelessWidget {
                     child: Text('Vista previa'),
                   ),
                 const PopupMenuItem<_DocumentAction>(
+                  value: _DocumentAction.move,
+                  child: Text('Mover a carpeta'),
+                ),
+                const PopupMenuItem<_DocumentAction>(
                   value: _DocumentAction.export,
                   child: Text('Sacar de la bóveda'),
                 ),
@@ -162,10 +210,75 @@ final class FilesVaultScreen extends StatelessWidget {
     switch (action) {
       case _DocumentAction.preview:
         await _openPreview(context, item);
+      case _DocumentAction.move:
+        await _moveItem(context, item);
       case _DocumentAction.export:
         await _export(context, item);
       case _DocumentAction.delete:
         await _delete(context, item);
+    }
+  }
+
+  Future<void> _createFolder(BuildContext context) async {
+    final String? name = await showCreateVaultFolderDialog(context);
+    if (name == null || !context.mounted) {
+      return;
+    }
+    try {
+      await context.read<DocumentImportCubit>().createFolder(name);
+    } on Object catch (error, stackTrace) {
+      AppErrorHandler.report(error, stackTrace);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo crear la carpeta. Revisa el nombre.'),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteFolder(BuildContext context, VaultFolder folder) async {
+    if (!await confirmDeleteVaultFolder(context, folder) || !context.mounted) {
+      return;
+    }
+    try {
+      await context.read<DocumentImportCubit>().deleteFolder(folder);
+    } on Object catch (error, stackTrace) {
+      AppErrorHandler.report(error, stackTrace);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo eliminar la carpeta.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _moveItem(BuildContext context, VaultItem item) async {
+    final DocumentImportCubit cubit = context.read<DocumentImportCubit>();
+    final VaultFolderDestination? destination =
+        await showMoveToVaultFolderDialog(
+          context,
+          folders: cubit.state.folders,
+          currentFolderId: item.folderId,
+        );
+    if (destination == null || !context.mounted) {
+      return;
+    }
+    try {
+      await cubit.moveToFolder(item, destination.folderId);
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Archivo movido.')));
+      }
+    } on Object catch (error, stackTrace) {
+      AppErrorHandler.report(error, stackTrace);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo mover el archivo.')),
+        );
+      }
     }
   }
 

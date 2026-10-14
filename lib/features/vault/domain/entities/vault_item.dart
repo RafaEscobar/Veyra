@@ -30,6 +30,7 @@ final class VaultItem extends Equatable {
     required this.importedAt,
     this.thumbnailPath,
     this.duration,
+    this.folderId,
   }) : assert(size >= 0, 'size cannot be negative');
 
   final String id;
@@ -42,6 +43,7 @@ final class VaultItem extends Equatable {
   final DateTime importedAt;
   final String? thumbnailPath;
   final Duration? duration;
+  final String? folderId;
 
   @override
   List<Object?> get props => <Object?>[
@@ -55,5 +57,6 @@ final class VaultItem extends Equatable {
     importedAt,
     thumbnailPath,
     duration,
+    folderId,
   ];
 }
