@@ -4,6 +4,17 @@
 *.pyc
 *.swp
 .DS_Store
+.env
+.env.*
+!.env.example
+.envrc
+.direnv/
+.gnupg/
+.secrets/
+.ssh/
+.netrc
+.npmrc
+.pypirc
 .atom/
 .build/
 .buildlog/
@@ -11,6 +22,14 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
+plan_desarrollo.md
+
+# Local agent, cloud, and editor state
+.agents/
+.aws/
+.codex/
+.fleet/
+.vscode/
 
 # IntelliJ related
 *.iml
@@ -33,6 +52,39 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Local databases, exports, and generated packages
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.apk
+*.aab
+
+# Secrets, signing material, and service credentials
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+key.properties
+keystore.properties
+secrets.json
+secrets.yaml
+secrets.yml
+credentials.json
+credentials.*.json
+**/google-services.json
+**/service-account*.json
+
+# Android-only repository: exclude every other Flutter platform
+/ios/
+/linux/
+/macos/
+/web/
+/windows/
+
 # Symbolication related
 app.*.symbols
 
@@ -43,3 +95,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/.gradle/
+/android/.kotlin/
+/android/captures/
+/android/local.properties
