@@ -31,4 +31,33 @@ abstract final class VaultDatabaseMigrations {
       'CHECK (duration_ms IS NULL OR duration_ms >= 0)',
     );
   }
+
+  static Future<void> migrateVersion2To3(Database database) async {
+    final Batch batch = database.batch();
+    batch.execute('''
+      CREATE TABLE ${VaultDatabaseSchema.foldersTable} (
+        id TEXT NOT NULL PRIMARY KEY,
+        name TEXT NOT NULL CHECK (length(trim(name)) BETWEEN 1 AND 60),
+        type TEXT NOT NULL CHECK (type IN ('image', 'video', 'file')),
+        created_at INTEGER NOT NULL,
+        UNIQUE (type, name COLLATE NOCASE)
+      )
+    ''');
+    batch.execute(
+      'ALTER TABLE ${VaultDatabaseSchema.itemsTable} '
+      'ADD COLUMN folder_id TEXT '
+      'REFERENCES ${VaultDatabaseSchema.foldersTable}(id) '
+      'ON DELETE SET NULL',
+    );
+    batch.execute('''
+      CREATE INDEX ${VaultDatabaseSchema.folderImportedAtIndex}
+      ON ${VaultDatabaseSchema.itemsTable}
+      (type, folder_id, imported_at DESC)
+    ''');
+    batch.execute('''
+      CREATE INDEX ${VaultDatabaseSchema.folderTypeIndex}
+      ON ${VaultDatabaseSchema.foldersTable} (type, created_at ASC)
+    ''');
+    await batch.commit(noResult: true);
+  }
 }

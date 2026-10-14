@@ -63,6 +63,7 @@ final class DocumentImportService {
 
   Future<DocumentImportResult?> selectAndImport({
     DocumentImportProgress? onProgress,
+    String? folderId,
   }) async {
     try {
       final List<PickedDocument> documents = await documentPicker
@@ -70,7 +71,11 @@ final class DocumentImportService {
       if (documents.isEmpty) {
         return null;
       }
-      return await importDocuments(documents, onProgress: onProgress);
+      return await importDocuments(
+        documents,
+        onProgress: onProgress,
+        folderId: folderId,
+      );
     } finally {
       await documentPicker.clearTemporaryFiles();
     }
@@ -79,23 +84,29 @@ final class DocumentImportService {
   Future<DocumentImportResult> importDocuments(
     List<PickedDocument> documents, {
     DocumentImportProgress? onProgress,
+    String? folderId,
   }) {
     return performanceMonitor.measure(
       PerformanceOperation.documentImport,
-      () => _importDocuments(documents, onProgress: onProgress),
+      () => _importDocuments(
+        documents,
+        onProgress: onProgress,
+        folderId: folderId,
+      ),
     );
   }
 
   Future<DocumentImportResult> _importDocuments(
     List<PickedDocument> documents, {
     DocumentImportProgress? onProgress,
+    String? folderId,
   }) async {
     final List<ImportedDocument> imported = <ImportedDocument>[];
     final List<FailedDocumentImport> failed = <FailedDocumentImport>[];
     for (int index = 0; index < documents.length; index++) {
       final PickedDocument document = documents[index];
       try {
-        imported.add(await _importOne(document));
+        imported.add(await _importOne(document, folderId: folderId));
       } on AppException catch (error, stackTrace) {
         AppErrorHandler.report(error, stackTrace, operation: 'document_import');
         failed.add(FailedDocumentImport(source: document, error: error));
@@ -119,7 +130,10 @@ final class DocumentImportService {
     );
   }
 
-  Future<ImportedDocument> _importOne(PickedDocument document) async {
+  Future<ImportedDocument> _importOne(
+    PickedDocument document, {
+    required String? folderId,
+  }) async {
     final String extension = _normalizedExtension(document);
     final String? mimeType = supportedMimeTypes[extension];
     if (mimeType == null) {
@@ -166,6 +180,7 @@ final class DocumentImportService {
         size: metadata.size,
         createdAt: metadata.modified.toUtc(),
         importedAt: _utcNow(),
+        folderId: folderId,
       );
       await vaultRepository.insert(item);
       metadataSaved = true;

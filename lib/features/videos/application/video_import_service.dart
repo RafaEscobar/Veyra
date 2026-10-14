@@ -74,16 +74,18 @@ final class VideoImportService {
   Future<VideoImportResult> importVideos(
     List<GalleryVideo> videos, {
     VideoImportProgress? onProgress,
+    String? folderId,
   }) {
     return performanceMonitor.measure(
       PerformanceOperation.videoImport,
-      () => _importVideos(videos, onProgress: onProgress),
+      () => _importVideos(videos, onProgress: onProgress, folderId: folderId),
     );
   }
 
   Future<VideoImportResult> _importVideos(
     List<GalleryVideo> videos, {
     VideoImportProgress? onProgress,
+    String? folderId,
   }) async {
     final List<ImportedVideo> imported = <ImportedVideo>[];
     final List<FailedVideoImport> failed = <FailedVideoImport>[];
@@ -91,7 +93,7 @@ final class VideoImportService {
       for (int index = 0; index < videos.length; index++) {
         final GalleryVideo video = videos[index];
         try {
-          imported.add(await _importOne(video));
+          imported.add(await _importOne(video, folderId: folderId));
         } on AppException catch (error, stackTrace) {
           AppErrorHandler.report(error, stackTrace, operation: 'video_import');
           failed.add(FailedVideoImport(source: video, error: error));
@@ -114,7 +116,10 @@ final class VideoImportService {
     );
   }
 
-  Future<ImportedVideo> _importOne(GalleryVideo video) async {
+  Future<ImportedVideo> _importOne(
+    GalleryVideo video, {
+    required String? folderId,
+  }) async {
     final File? sourceFile = await videoLibrary.loadOriginal(video.id);
     if (sourceFile == null || !await sourceFile.exists()) {
       throw const VaultSourceFileNotFoundException();
@@ -187,6 +192,7 @@ final class VideoImportService {
         importedAt: _utcNow(),
         thumbnailPath: thumbnailFile == null ? null : thumbnailFileName,
         duration: video.duration,
+        folderId: folderId,
       );
       await vaultRepository.insert(item);
       metadataSaved = true;

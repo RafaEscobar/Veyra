@@ -1797,3 +1797,9 @@ y toda la complejidad criptográfica deberá permanecer invisible para el usuari
 - [x] Registrar fallos parciales de importación y enlazar sus detalles debug.
 - [x] Admitir miniaturas inmutables entregadas por Android al importar imágenes y videos.
 - [x] Admitir bloques inmutables del backend criptográfico Android al descifrar archivos.
+- [x] Agregar carpetas virtuales independientes para imágenes, videos y archivos.
+- [x] Permitir crear, abrir y eliminar carpetas sin eliminar su contenido.
+- [x] Importar elementos directamente en la carpeta activa.
+- [x] Permitir mover elementos entre carpetas y la raíz.
+- [x] Migrar la base de datos conservando todos los elementos existentes.
+- [x] Validar carpetas, migración y regresiones con pruebas automatizadas.

@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:veyra/features/images/domain/entities/image_import_result.dart';
+import 'package:veyra/features/vault/domain/entities/vault_folder.dart';
 import 'package:veyra/features/vault/domain/entities/vault_item.dart';
 
 enum ImageImportStatus { idle, loading, importing, completed, failure }
@@ -13,7 +14,9 @@ final class ImageImportState extends Equatable {
     required this.hasMore,
     required this.isLoadingMore,
     required this.showNames,
+    required this.folders,
     this.result,
+    this.currentFolder,
   });
 
   const ImageImportState.initial()
@@ -24,7 +27,9 @@ final class ImageImportState extends Equatable {
       hasMore = true,
       isLoadingMore = false,
       showNames = false,
-      result = null;
+      folders = const <VaultFolder>[],
+      result = null,
+      currentFolder = null;
 
   final ImageImportStatus status;
   final List<VaultItem> items;
@@ -33,7 +38,9 @@ final class ImageImportState extends Equatable {
   final bool hasMore;
   final bool isLoadingMore;
   final bool showNames;
+  final List<VaultFolder> folders;
   final ImageImportResult? result;
+  final VaultFolder? currentFolder;
 
   int get imageCount => items.length;
   double? get progress => total == 0 ? null : completed / total;
@@ -46,7 +53,10 @@ final class ImageImportState extends Equatable {
     bool? hasMore,
     bool? isLoadingMore,
     bool? showNames,
+    List<VaultFolder>? folders,
     ImageImportResult? result,
+    VaultFolder? currentFolder,
+    bool clearCurrentFolder = false,
   }) {
     return ImageImportState(
       status: status ?? this.status,
@@ -56,7 +66,11 @@ final class ImageImportState extends Equatable {
       hasMore: hasMore ?? this.hasMore,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       showNames: showNames ?? this.showNames,
+      folders: folders ?? this.folders,
       result: result,
+      currentFolder: clearCurrentFolder
+          ? null
+          : currentFolder ?? this.currentFolder,
     );
   }
 
@@ -69,6 +83,8 @@ final class ImageImportState extends Equatable {
     hasMore,
     isLoadingMore,
     showNames,
+    folders,
     result,
+    currentFolder,
   ];
 }

@@ -23,6 +23,7 @@ import 'package:veyra/features/onboarding/presentation/pages/welcome_page.dart';
 import 'package:veyra/features/recovery/domain/repositories/recovery_repository.dart';
 import 'package:veyra/features/recovery/presentation/cubit/recovery_cubit.dart';
 import 'package:veyra/features/recovery/presentation/pages/recovery_page.dart';
+import 'package:veyra/features/vault/domain/repositories/vault_folder_repository.dart';
 import 'package:veyra/features/vault/domain/repositories/vault_repository.dart';
 import 'package:veyra/features/vault/presentation/cubit/vault_home_cubit.dart';
 import 'package:veyra/features/vault/presentation/pages/vault_home_screen.dart';
@@ -107,9 +108,14 @@ abstract final class AppRouter {
           path: AppRoutes.imagesVaultPath,
           builder: (context, state) => BlocProvider<ImageImportCubit>(
             create: (context) {
+              final VaultRepository repository = context
+                  .read<VaultRepository>();
               final ImageImportCubit cubit = ImageImportCubit(
                 context.read<ImageImportService>(),
                 context.read<ImageVaultService>(),
+                repository is VaultFolderRepository
+                    ? repository as VaultFolderRepository
+                    : null,
               );
               unawaited(cubit.loadCount());
               return cubit;
@@ -122,9 +128,14 @@ abstract final class AppRouter {
           path: AppRoutes.videosVaultPath,
           builder: (context, state) => BlocProvider<VideoImportCubit>(
             create: (context) {
+              final VaultRepository repository = context
+                  .read<VaultRepository>();
               final VideoImportCubit cubit = VideoImportCubit(
                 context.read<VideoImportService>(),
                 context.read<VideoVaultService>(),
+                repository is VaultFolderRepository
+                    ? repository as VaultFolderRepository
+                    : null,
               );
               unawaited(cubit.loadCount());
               return cubit;
@@ -137,9 +148,14 @@ abstract final class AppRouter {
           path: AppRoutes.filesVaultPath,
           builder: (context, state) => BlocProvider<DocumentImportCubit>(
             create: (context) {
+              final VaultRepository repository = context
+                  .read<VaultRepository>();
               final DocumentImportCubit cubit = DocumentImportCubit(
                 context.read<DocumentImportService>(),
                 context.read<DocumentVaultService>(),
+                repository is VaultFolderRepository
+                    ? repository as VaultFolderRepository
+                    : null,
               );
               unawaited(cubit.loadItems());
               return cubit;

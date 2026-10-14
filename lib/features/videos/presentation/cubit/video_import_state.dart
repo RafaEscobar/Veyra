@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:veyra/features/vault/domain/entities/vault_folder.dart';
 import 'package:veyra/features/vault/domain/entities/vault_item.dart';
 import 'package:veyra/features/videos/domain/entities/video_import_result.dart';
 
@@ -19,7 +20,9 @@ final class VideoImportState extends Equatable {
     required this.total,
     required this.hasMore,
     required this.isLoadingMore,
+    required this.folders,
     this.result,
+    this.currentFolder,
   });
 
   const VideoImportState.initial()
@@ -29,7 +32,9 @@ final class VideoImportState extends Equatable {
       total = 0,
       hasMore = true,
       isLoadingMore = false,
-      result = null;
+      folders = const <VaultFolder>[],
+      result = null,
+      currentFolder = null;
 
   final VideoImportStatus status;
   final List<VaultItem> items;
@@ -37,7 +42,9 @@ final class VideoImportState extends Equatable {
   final int total;
   final bool hasMore;
   final bool isLoadingMore;
+  final List<VaultFolder> folders;
   final VideoImportResult? result;
+  final VaultFolder? currentFolder;
 
   int get videoCount => items.length;
   double? get progress => total == 0 ? null : completed / total;
@@ -49,7 +56,10 @@ final class VideoImportState extends Equatable {
     int? total,
     bool? hasMore,
     bool? isLoadingMore,
+    List<VaultFolder>? folders,
     VideoImportResult? result,
+    VaultFolder? currentFolder,
+    bool clearCurrentFolder = false,
   }) {
     return VideoImportState(
       status: status ?? this.status,
@@ -58,7 +68,11 @@ final class VideoImportState extends Equatable {
       total: total ?? this.total,
       hasMore: hasMore ?? this.hasMore,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      folders: folders ?? this.folders,
       result: result,
+      currentFolder: clearCurrentFolder
+          ? null
+          : currentFolder ?? this.currentFolder,
     );
   }
 
@@ -70,6 +84,8 @@ final class VideoImportState extends Equatable {
     total,
     hasMore,
     isLoadingMore,
+    folders,
     result,
+    currentFolder,
   ];
 }

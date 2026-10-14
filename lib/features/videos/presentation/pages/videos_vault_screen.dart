@@ -5,8 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:veyra/core/errors/app_error_handler.dart';
 import 'package:veyra/core/errors/app_error_message.dart';
+import 'package:veyra/features/vault/domain/entities/vault_folder.dart';
 import 'package:veyra/features/vault/domain/entities/vault_item.dart';
 import 'package:veyra/features/vault/presentation/widgets/vault_content_state.dart';
+import 'package:veyra/features/vault/presentation/widgets/vault_folder_dialogs.dart';
+import 'package:veyra/features/vault/presentation/widgets/vault_folder_section.dart';
 import 'package:veyra/features/videos/domain/entities/gallery_video.dart';
 import 'package:veyra/features/videos/domain/entities/video_import_result.dart';
 import 'package:veyra/features/videos/domain/repositories/video_library_repository.dart';
@@ -15,7 +18,7 @@ import 'package:veyra/features/videos/presentation/cubit/video_import_state.dart
 import 'package:veyra/features/videos/presentation/pages/vault_video_player_screen.dart';
 import 'package:veyra/features/videos/presentation/pages/video_asset_picker_screen.dart';
 
-enum _VideoAction { export, delete }
+enum _VideoAction { move, export, delete }
 
 final class VideosVaultScreen extends StatelessWidget {
   const VideosVaultScreen({super.key});
@@ -27,35 +30,75 @@ final class VideosVaultScreen extends StatelessWidget {
         final bool busy =
             state.status == VideoImportStatus.importing ||
             state.status == VideoImportStatus.checkingSize;
-        return Scaffold(
-          appBar: AppBar(title: const Text('Videos')),
-          body: SafeArea(
-            child: Column(
-              children: <Widget>[
-                if (state.status == VideoImportStatus.checkingSize)
-                  const LinearProgressIndicator(),
-                if (state.status == VideoImportStatus.importing) ...<Widget>[
-                  LinearProgressIndicator(value: state.progress),
-                  const SizedBox(height: 8),
-                  Text('Importando ${state.completed} de ${state.total}'),
-                ],
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 180),
-                    child: _buildGrid(context, state),
-                  ),
-                ),
-                if (state.items.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-                    child: FilledButton.icon(
-                      key: const ValueKey<String>('add-videos'),
-                      onPressed: busy ? null : () => _selectVideos(context),
-                      icon: const Icon(Icons.video_library_outlined),
-                      label: const Text('Agregar videos'),
+        final VideoImportCubit cubit = context.read<VideoImportCubit>();
+        return PopScope(
+          canPop: state.currentFolder == null,
+          onPopInvokedWithResult: (didPop, result) {
+            if (!didPop) {
+              unawaited(cubit.leaveFolder());
+            }
+          },
+          child: Scaffold(
+            appBar: AppBar(
+              leading: state.currentFolder == null
+                  ? null
+                  : IconButton(
+                      onPressed: cubit.leaveFolder,
+                      tooltip: 'Volver',
+                      icon: const Icon(Icons.arrow_back),
                     ),
+              title: Text(state.currentFolder?.name ?? 'Videos'),
+              actions: <Widget>[
+                if (state.currentFolder == null)
+                  IconButton(
+                    key: const ValueKey<String>('create-video-folder'),
+                    onPressed: () => _createFolder(context),
+                    tooltip: 'Crear carpeta',
+                    icon: const Icon(Icons.create_new_folder_outlined),
                   ),
               ],
+            ),
+            body: SafeArea(
+              child: Column(
+                children: <Widget>[
+                  if (state.status == VideoImportStatus.checkingSize)
+                    const LinearProgressIndicator(),
+                  if (state.status == VideoImportStatus.importing) ...<Widget>[
+                    LinearProgressIndicator(value: state.progress),
+                    const SizedBox(height: 8),
+                    Text('Importando ${state.completed} de ${state.total}'),
+                  ],
+                  Expanded(
+                    child: Column(
+                      children: <Widget>[
+                        if (state.currentFolder == null)
+                          VaultFolderSection(
+                            folders: state.folders,
+                            onOpen: cubit.enterFolder,
+                            onDelete: (folder) =>
+                                _deleteFolder(context, folder),
+                          ),
+                        Expanded(
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 180),
+                            child: _buildGrid(context, state),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (state.items.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+                      child: FilledButton.icon(
+                        key: const ValueKey<String>('add-videos'),
+                        onPressed: busy ? null : () => _selectVideos(context),
+                        icon: const Icon(Icons.video_library_outlined),
+                        label: const Text('Agregar videos'),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         );
@@ -148,6 +191,10 @@ final class VideosVaultScreen extends StatelessWidget {
     VaultItem item,
     _VideoAction action,
   ) async {
+    if (action == _VideoAction.move) {
+      await _moveItem(context, item);
+      return;
+    }
     final bool confirmed =
         await showDialog<bool>(
           context: context,
@@ -204,6 +251,69 @@ final class VideosVaultScreen extends StatelessWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AppErrorMessage.forError(error))),
+        );
+      }
+    }
+  }
+
+  Future<void> _createFolder(BuildContext context) async {
+    final String? name = await showCreateVaultFolderDialog(context);
+    if (name == null || !context.mounted) {
+      return;
+    }
+    try {
+      await context.read<VideoImportCubit>().createFolder(name);
+    } on Object catch (error, stackTrace) {
+      AppErrorHandler.report(error, stackTrace);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo crear la carpeta. Revisa el nombre.'),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteFolder(BuildContext context, VaultFolder folder) async {
+    if (!await confirmDeleteVaultFolder(context, folder) || !context.mounted) {
+      return;
+    }
+    try {
+      await context.read<VideoImportCubit>().deleteFolder(folder);
+    } on Object catch (error, stackTrace) {
+      AppErrorHandler.report(error, stackTrace);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo eliminar la carpeta.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _moveItem(BuildContext context, VaultItem item) async {
+    final VideoImportCubit cubit = context.read<VideoImportCubit>();
+    final VaultFolderDestination? destination =
+        await showMoveToVaultFolderDialog(
+          context,
+          folders: cubit.state.folders,
+          currentFolderId: item.folderId,
+        );
+    if (destination == null || !context.mounted) {
+      return;
+    }
+    try {
+      await cubit.moveToFolder(item, destination.folderId);
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Video movido.')));
+      }
+    } on Object catch (error, stackTrace) {
+      AppErrorHandler.report(error, stackTrace);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo mover el video.')),
         );
       }
     }
@@ -402,6 +512,10 @@ final class _VaultVideoTileState extends State<_VaultVideoTile> {
                     onSelected: widget.onAction,
                     itemBuilder: (context) =>
                         const <PopupMenuEntry<_VideoAction>>[
+                          PopupMenuItem<_VideoAction>(
+                            value: _VideoAction.move,
+                            child: Text('Mover a carpeta'),
+                          ),
                           PopupMenuItem<_VideoAction>(
                             value: _VideoAction.export,
                             child: Text('Sacar de la bóveda'),
